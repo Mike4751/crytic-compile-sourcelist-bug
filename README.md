@@ -86,22 +86,83 @@ The fix:
 2. Tracks source ID → filename mapping
 3. Uses ID-ordered filenames for export
 
+## Backwards Compatibility
+
+The fix has been tested to ensure it doesn't break standard project structures.
+
+### Test: Simple Project (test/simple/)
+
+A basic project with standard inheritance chain (A → B → C):
+
+```bash
+cd test/simple
+forge build --build-info
+crytic-compile . --export-format solc --export-dir crytic-export --foundry-ignore-compile
+python3 ../../scripts/verify_sourcelist.py
+```
+
+**Result with patched crytic-compile:**
+```
+  sourceList[0]: A.sol (expected A.sol) - OK
+  sourceList[1]: B.sol (expected B.sol) - OK
+  sourceList[2]: C.sol (expected C.sol) - OK
+
+Result: 0 mismatches - PASS
+```
+
+### Test: Root Build (standard structure)
+
+Building from project root with standard `foundry.toml`:
+
+```bash
+cd /path/to/repo  # root directory
+forge build --build-info
+crytic-compile . --export-format solc --export-dir crytic-export --foundry-ignore-compile
+python3 scripts/verify_sourcelist.py
+```
+
+**Result with patched crytic-compile:**
+```
+  sourceList[0]: Main.sol - OK
+  sourceList[1]: Base.sol - OK
+  ...
+Result: 0 mismatches - PASS
+```
+
+### Summary
+
+| Project Type | Structure | Unpatched | Patched |
+|-------------|-----------|-----------|---------|
+| Simple (A→B→C) | Standard | 0 mismatches | 0 mismatches ✓ |
+| Root build | Standard | 0 mismatches | 0 mismatches ✓ |
+| test/fuzzing | Relative paths | **8 mismatches** | 0 mismatches ✓ |
+| Large project (~470 files) | Complex relative paths | **470 mismatches** | 0 mismatches ✓ |
+
+**The fix resolves the bug without breaking backwards compatibility.**
+
 ## Files
 
 ```
 ├── contracts/Main.sol           # Main contract
-├── lib/mylib/                   # Local library (like forge-std)
+├── lib/mylib/                   # Local library
 │   ├── Base.sol
 │   └── Helper.sol
-├── node_modules/@external/      # External deps (like @chainlink)
+├── node_modules/@external/      # External deps
 │   └── interfaces/
 │       ├── IOracle.sol
 │       └── IPrice.sol
-├── test/fuzzing/                # Fuzzing subdirectory
-│   ├── foundry.toml             # Uses RELATIVE paths ../../
-│   └── FuzzTest.sol
+├── test/
+│   ├── fuzzing/                 # Triggers the bug (relative paths)
+│   │   ├── foundry.toml
+│   │   └── FuzzTest.sol
+│   └── simple/                  # Backwards compatibility test
+│       ├── foundry.toml
+│       └── src/
+│           ├── A.sol
+│           ├── B.sol
+│           └── C.sol
 ├── scripts/
-│   └── verify_sourcelist.py    # Verification script
+│   └── verify_sourcelist.py
 └── foundry.toml
 ```
 
