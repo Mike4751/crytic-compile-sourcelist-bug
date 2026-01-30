@@ -1,0 +1,8 @@
+# Foundry
+out/
+cache/
+crytic-export/
+
+# Python
+__pycache__/
+*.pyc

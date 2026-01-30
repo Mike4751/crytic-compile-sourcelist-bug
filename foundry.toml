@@ -1,0 +1,9 @@
+[profile.default]
+src = "contracts"
+out = "out"
+libs = ["node_modules", "lib"]
+build_info = true
+remappings = [
+    "@external/=node_modules/@external/",
+    "mylib/=lib/mylib/"
+]
