@@ -2,3 +2,4 @@
 src = "src"
 out = "out"
 build_info = true
+# No libs - completely standalone project

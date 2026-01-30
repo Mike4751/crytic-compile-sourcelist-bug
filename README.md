@@ -90,53 +90,52 @@ The fix:
 
 The fix has been tested to ensure it doesn't break standard project structures.
 
-### Test: Simple Project (test/simple/)
+### Two Separate Test Environments
 
-A basic project with standard inheritance chain (A → B → C):
+This repo contains two **completely isolated** test environments:
 
-```bash
-cd test/simple
-forge build --build-info
-crytic-compile . --export-format solc --export-dir crytic-export --foundry-ignore-compile
-python3 ../../scripts/verify_sourcelist.py
+```
+crytic-compile-sourcelist-bug/
+├── test/fuzzing/              # Bug trigger (8 files, relative paths)
+│   ├── foundry.toml           # libs = ["../../node_modules", "../../lib"]
+│   └── FuzzTest.sol
+│
+└── test-backwards-compat/     # Simple project (3 files, standard structure)
+    ├── foundry.toml           # No libs - standalone
+    └── src/
+        ├── A.sol
+        ├── B.sol
+        └── C.sol
 ```
 
-**Result with patched crytic-compile:**
+### Verification
+
+**test/fuzzing** (8 files with relative paths):
 ```
-  sourceList[0]: A.sol (expected A.sol) - OK
-  sourceList[1]: B.sol (expected B.sol) - OK
-  sourceList[2]: C.sol (expected C.sol) - OK
-
-Result: 0 mismatches - PASS
-```
-
-### Test: Root Build (standard structure)
-
-Building from project root with standard `foundry.toml`:
-
-```bash
-cd /path/to/repo  # root directory
-forge build --build-info
-crytic-compile . --export-format solc --export-dir crytic-export --foundry-ignore-compile
-python3 scripts/verify_sourcelist.py
-```
-
-**Result with patched crytic-compile:**
-```
-  sourceList[0]: Main.sol - OK
-  sourceList[1]: Base.sol - OK
+Files compiled: 8
+  ../../contracts/Main.sol
+  ../../lib/mylib/Base.sol
+  ../../lib/mylib/Helper.sol
+  ../../node_modules/@external/interfaces/IOracle.sol
+  ../../node_modules/@external/interfaces/IPrice.sol
   ...
-Result: 0 mismatches - PASS
 ```
 
-### Summary
+**test-backwards-compat** (3 files, simple structure):
+```
+Files compiled: 3
+  src/A.sol
+  src/B.sol
+  src/C.sol
+```
 
-| Project Type | Structure | Unpatched | Patched |
-|-------------|-----------|-----------|---------|
-| Simple (A→B→C) | Standard | 0 mismatches | 0 mismatches ✓ |
-| Root build | Standard | 0 mismatches | 0 mismatches ✓ |
-| test/fuzzing | Relative paths | **8 mismatches** | 0 mismatches ✓ |
-| Large project (~470 files) | Complex relative paths | **470 mismatches** | 0 mismatches ✓ |
+### Results
+
+| Environment | Files | Structure | Unpatched | Patched |
+|-------------|-------|-----------|-----------|---------|
+| test-backwards-compat | 3 | Standard | 0 mismatches | 0 mismatches ✓ |
+| test/fuzzing | 8 | Relative paths | **8 mismatches** | 0 mismatches ✓ |
+| Large project (~470 files) | 470 | Complex | **470 mismatches** | 0 mismatches ✓ |
 
 **The fix resolves the bug without breaking backwards compatibility.**
 
@@ -152,15 +151,15 @@ Result: 0 mismatches - PASS
 │       ├── IOracle.sol
 │       └── IPrice.sol
 ├── test/
-│   ├── fuzzing/                 # Triggers the bug (relative paths)
-│   │   ├── foundry.toml
-│   │   └── FuzzTest.sol
-│   └── simple/                  # Backwards compatibility test
+│   └── fuzzing/                 # Bug trigger (relative paths)
 │       ├── foundry.toml
-│       └── src/
-│           ├── A.sol
-│           ├── B.sol
-│           └── C.sol
+│       └── FuzzTest.sol
+├── test-backwards-compat/       # Backwards compatibility test
+│   ├── foundry.toml
+│   └── src/
+│       ├── A.sol
+│       ├── B.sol
+│       └── C.sol
 ├── scripts/
 │   └── verify_sourcelist.py
 └── foundry.toml
